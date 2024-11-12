@@ -1,0 +1,43 @@
+name: CI/CD for Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.ACR_LOGIN_SERVER }}/healthcare-app:latest
+
+      - name: Deploy to Azure Container Apps
+        env:
+          REGISTRY_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          REGISTRY_USERNAME: ${{ secrets.ACR_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          IMAGE_NAME: my-image
+        run: |
+          az containerapp update --name cae-healthCare \
+            --resource-group rg-healthCare \
+            --image $REGISTRY_SERVER/$IMAGE_NAME:latest
